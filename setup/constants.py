@@ -10,3 +10,5 @@ pair_times = {
     "7": ("18:55", "20:25"),
     "8": ("20:30", "22:00"),
 }
+base_url = 'https://rasp.rea.ru/'
+group = '?q=15.27%D0%B4-%D0%BF%D0%B805%2F24%D0%BC'
