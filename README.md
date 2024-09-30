@@ -8,6 +8,5 @@ Calendar id, pair times, base and group URL are placed inside 'setup/constants.p
 Google Calendar API is written inside 'googlecalendarAPI.py'
 
 # TODO
-- Add group name to constants.py
 - Add option to load next weeks
 - Get teacher name via click

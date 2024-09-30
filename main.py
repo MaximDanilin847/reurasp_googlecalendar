@@ -12,6 +12,10 @@ from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from googlecalendarAPI import *
 
+def encode_group_name(group_name):
+    encoded_name = urllib.parse.quote(group_name.encode('utf-8'))
+    return encoded_name
+
 # Настраиваем опции для Chrome
 chrome_options = Options()
 chrome_options.add_argument("--headless")  # Запускаем браузер в фоновом режиме
@@ -19,8 +23,10 @@ chrome_options.add_argument("--headless")  # Запускаем браузер �
 # Инициализdируем веб-драйвер
 driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
 
+# Группа
+group_name_encoded = encode_group_name(group_name_normal)
 # URL с расписанием
-url = base_url + group
+url = base_url + '?q=' + group_name_encoded
 
 # Открываем страницу в браузере
 driver.get(url)

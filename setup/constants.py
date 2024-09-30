@@ -1,3 +1,7 @@
+import urllib.parse
+
+
+
 calendar_id = "74783aa192d6ca54880ee8fd2a75c39b2baf18ff9cb740d6f353d23ed81fa689@group.calendar.google.com"
 # Времена пар в формате: номер пары: (время начала, время окончания)
 pair_times = {
@@ -11,4 +15,4 @@ pair_times = {
     "8": ("20:30", "22:00"),
 }
 base_url = 'https://rasp.rea.ru/'
-group = '?q=15.27%D0%B4-%D0%BF%D0%B805%2F24%D0%BC'
+group_name_normal = '15.27д-пи05/24м'
