@@ -10,3 +10,12 @@ Google Calendar API is written inside 'googlecalendarAPI.py'
 # TODO
 - Add option to load next weeks
 - Get teacher name via click
+
+# FIRST LAUNCH
+To run, you should install all the libraries used:
+pip install webdriver_manager
+pip install selenium
+pip install bs4
+pip install google
+pip install google_auth_oauthlib
+pip install google-api-python-client
