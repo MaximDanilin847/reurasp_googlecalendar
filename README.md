@@ -21,3 +21,4 @@ pip install google
 pip install google_auth_oauthlib
 pip install google-api-python-client
 ```
+or use requirements.txt file
