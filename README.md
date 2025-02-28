@@ -10,6 +10,7 @@ Google Calendar API is written inside 'googlecalendarAPI.py'
 # TODO
 - Add option to load next weeks
 - Get teacher name via click
+- Add color-coding for exams
 
 # FIRST LAUNCH
 To run, you should install all the libraries used:
