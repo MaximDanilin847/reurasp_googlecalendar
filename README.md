@@ -15,7 +15,7 @@ Google Calendar API is written inside 'googlecalendarAPI.py'
 - Add color-coding for exams
 
 # FIRST LAUNCH
-To run, you should install all the libraries used:
+1) install all the libraries used:
 ```
 pip install webdriver_manager
 pip install selenium
@@ -25,3 +25,6 @@ pip install google_auth_oauthlib
 pip install google-api-python-client
 ```
 or use requirements.txt file
+
+2) Add service servicekey.json or credentials.json or token.json 
+3) Modify calendar Id's and group name in constant.py

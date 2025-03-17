@@ -16,3 +16,5 @@ pair_times = {
 }
 base_url = 'https://rasp.rea.ru/'
 group_name_normal = '15.27д-пи05/24м'
+# Количество недель для парсинга (включая текущую)
+weeks_to_parse = 2

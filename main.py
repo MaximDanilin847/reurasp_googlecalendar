@@ -1,11 +1,12 @@
 import time
+import urllib.parse
 
 from setup.constants import *
 from bs4 import BeautifulSoup
 
-
 from selenium import webdriver
-
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
@@ -16,128 +17,163 @@ def encode_group_name(group_name):
     encoded_name = urllib.parse.quote(group_name.encode('utf-8'))
     return encoded_name
 
-# Настраиваем опции для Chrome
-chrome_options = Options()
-chrome_options.add_argument("--headless")  # Запускаем браузер в фоновом режиме
+def parse_schedule_for_current_week(html_content, service):
+    """Парсит расписание для текущей недели из HTML-контента"""
+    soup = BeautifulSoup(html_content, 'html.parser')
+    
+    # Проверяем наличие блоков расписания
+    zone_timetable = soup.select_one('div#zoneTimetable')
+    if zone_timetable:
+        print("Блок с расписанием найден")
 
-# Инициализdируем веб-драйвер
-driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+        # Ищем все div.col-lg-6 внутри zoneTimetable
+        schedule_blocks = zone_timetable.select('div.col-lg-6')
+        print(f"Найдено {len(schedule_blocks)} блоков с парами")
 
-# Группа
-group_name_encoded = encode_group_name(group_name_normal)
-# URL с расписанием
-url = base_url + '?q=' + group_name_encoded
+        for i, block in enumerate(schedule_blocks):
+            print(f"Проверяем блок {i + 1}")
 
-# Открываем страницу в браузере
-driver.get(url)
+            # Проверяем наличие заголовка с датой
+            date_header = block.select_one('thead th.dayh h5')
+            if date_header:
+                date_text = date_header.text.strip()
+                print(f"Дата: {date_text}")
 
-# Ожидаем некоторое время для полной загрузки страницы
-time.sleep(5)
-
-# Получаем HTML-код после полной загрузки
-html_content = driver.page_source
-
-# Закрываем браузер
-driver.quit()
-
-# Используем BeautifulSoup для парсинга страницы
-soup = BeautifulSoup(html_content, 'html.parser')
-
-# Аутентификация в Google Calendar
-service = authenticate_google_calendar()
-
-# Проверяем наличие блоков расписания
-zone_timetable = soup.select_one('div#zoneTimetable')
-if zone_timetable:
-    print("Блок с расписанием найден")
-
-    # Ищем все div.col-lg-6 внутри zoneTimetable
-    schedule_blocks = zone_timetable.select('div.col-lg-6')
-    print(f"Найдено {len(schedule_blocks)} блоков с парами")
-
-    for i, block in enumerate(schedule_blocks):
-        print(f"Проверяем блок {i + 1}")
-
-        # Проверяем наличие заголовка с датой
-        date_header = block.select_one('thead th.dayh h5')
-        if date_header:
-            date_text = date_header.text.strip()
-            print(f"Дата: {date_text}")
-
-            # Преобразуем текст даты в формат day.month.year
-            day, month, year = date_text.split(", ")[1].split(".")
-        else:
-            print(f"Дата не найдена в блоке {i + 1}")
-            continue  # Пропускаем, если нет даты
-
-        # Проверяем наличие строк с занятиями
-        slots = block.select('tr.slot')
-        print(f"Найдено {len(slots)} занятий в блоке {i + 1}")
-
-        for slot in slots:
-            # Номер пары
-            pair_number_info = slot.select_one('td span.pcap')
-            if pair_number_info:
-                pair_number = pair_number_info.text.strip().split()[0]  # Извлекаем номер пары
-                time_range = pair_times.get(pair_number)  # Получаем время для данной пары
-                
-                if time_range:
-                    start_time, end_time = time_range
-
-                    # Создаем строку времени в формате для Google Calendar (RFC3339)
-                    start_datetime = f"{year}-{month}-{day}T{start_time}:00+03:00"
-                    end_datetime = f"{year}-{month}-{day}T{end_time}:00+03:00"
-                    print(f"Занятие {pair_number}: {start_time} - {end_time} ({start_datetime} - {end_datetime})")
-
-                    # Название предмета и описание
-                    description = slot.select_one('td a.task')
-                    if description:
-                        # Получаем текст занятия и разбиваем его по пустым строкам
-                        full_text = description.get_text(separator="\n").strip()
-                        
-                        # Разбиваем по пустым строкам (двойной перевод строки или два подряд символа новой строки)
-                        parts = full_text.split("\n\n")
-                        
-                        # Название предмета — это первый элемент
-                        subject = parts[0].strip()
-                        
-                        # Описание — это все остальное
-                        description_text = "\n".join(parts[1:]).strip() if len(parts) > 1 else "Без описания"
-
-                        print(f"Занятие: {subject}")
-                        print(f"Описание: {description_text}")
-
-                        if not event_exists(service, calendar_id, subject, start_datetime, end_datetime):
-                            # Если события с таким названием и временем нет, создаем новое событие
-                            event = {
-                                'summary': subject,
-                                'description': description_text,
-                                'start': {
-                                    'dateTime': start_datetime,
-                                    'timeZone': 'Europe/Moscow',
-                                },
-                                'end': {
-                                    'dateTime': end_datetime,
-                                    'timeZone': 'Europe/Moscow',
-                                },
-                            }
-
-                            # Создаем событие
-                            created_event = create_google_calendar_event(
-                            service,
-                            subject,
-                            start_datetime,
-                            end_datetime,
-                            description_text
-                        )
-                            print(f"Создано событие: {created_event['htmlLink']}")
-                        else:
-                            print(f"Событие '{subject}' на это время уже существует.")
-                    else:
-                        print("Занятие не найдено")
-                else:
-                    print(f"Время для пары {pair_number} не найдено в словаре.")
+                # Преобразуем текст даты в формат day.month.year
+                day, month, year = date_text.split(", ")[1].split(".")
             else:
-                print("Номер пары не найден")
-else:
-    print("Блок с расписанием НЕ найден")
+                print(f"Дата не найдена в блоке {i + 1}")
+                continue  # Пропускаем, если нет даты
+
+            # Проверяем наличие строк с занятиями
+            slots = block.select('tr.slot')
+            print(f"Найдено {len(slots)} занятий в блоке {i + 1}")
+
+            for slot in slots:
+                # Номер пары
+                pair_number_info = slot.select_one('td span.pcap')
+                if pair_number_info:
+                    pair_number = pair_number_info.text.strip().split()[0]  # Извлекаем номер пары
+                    time_range = pair_times.get(pair_number)  # Получаем время для данной пары
+                    
+                    if time_range:
+                        start_time, end_time = time_range
+
+                        # Создаем строку времени в формате для Google Calendar (RFC3339)
+                        start_datetime = f"{year}-{month}-{day}T{start_time}:00+03:00"
+                        end_datetime = f"{year}-{month}-{day}T{end_time}:00+03:00"
+                        print(f"Занятие {pair_number}: {start_time} - {end_time} ({start_datetime} - {end_datetime})")
+
+                        # Название предмета и описание
+                        description = slot.select_one('td a.task')
+                        if description:
+                            # Получаем текст занятия и разбиваем его по пустым строкам
+                            full_text = description.get_text(separator="\n").strip()
+                            
+                            # Разбиваем по пустым строкам (двойной перевод строки или два подряд символа новой строки)
+                            parts = full_text.split("\n\n")
+                            
+                            # Название предмета — это первый элемент
+                            subject = parts[0].strip()
+                            
+                            # Описание — это все остальное
+                            description_text = "\n".join(parts[1:]).strip() if len(parts) > 1 else "Без описания"
+
+                            print(f"Занятие: {subject}")
+                            print(f"Описание: {description_text}")
+
+                            if not event_exists(service, calendar_id, subject, start_datetime, end_datetime):
+                                # Если события с таким названием и временем нет, создаем новое событие
+                                event = {
+                                    'summary': subject,
+                                    'description': description_text,
+                                    'start': {
+                                        'dateTime': start_datetime,
+                                        'timeZone': 'Europe/Moscow',
+                                    },
+                                    'end': {
+                                        'dateTime': end_datetime,
+                                        'timeZone': 'Europe/Moscow',
+                                    },
+                                }
+
+                                # Создаем событие
+                                created_event = create_google_calendar_event(
+                                service,
+                                subject,
+                                start_datetime,
+                                end_datetime,
+                                description_text
+                            )
+                                print(f"Создано событие: {created_event['htmlLink']}")
+                            else:
+                                print(f"Событие '{subject}' на это время уже существует.")
+                        else:
+                            print("Занятие не найдено")
+                    else:
+                        print(f"Время для пары {pair_number} не найдено в словаре.")
+                else:
+                    print("Номер пары не найден")
+    else:
+        print("Блок с расписанием НЕ найден")
+
+# Основная функция
+def main():
+    # Настраиваем опции для Chrome
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")  # Запускаем браузер в фоновом режиме
+
+    # Инициализируем веб-драйвер
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+
+    # Группа
+    group_name_encoded = encode_group_name(group_name_normal)
+    # URL с расписанием
+    url = base_url + '?q=' + group_name_encoded
+
+    # Открываем страницу в браузере
+    driver.get(url)
+
+    # Ожидаем некоторое время для полной загрузки страницы
+    time.sleep(5)
+    
+    # Аутентификация в Google Calendar
+    service = authenticate_google_calendar()
+
+    # Парсим текущую неделю (неделя 0)
+    html_content = driver.page_source
+    print("\n--- Парсинг текущей недели ---\n")
+    parse_schedule_for_current_week(html_content, service)
+    
+    # Парсим дополнительные недели
+    for week in range(1, weeks_to_parse):
+        print(f"\n--- Парсинг недели {week} ---\n")
+        
+        try:
+            # Ищем кнопку для переключения на следующую неделю
+            next_week_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.ID, "next"))
+            )
+            
+            # Нажимаем на кнопку
+            next_week_button.click()
+            
+            # Ждем загрузки новых данных
+            time.sleep(3)
+            
+            # Получаем HTML-код после обновления
+            html_content = driver.page_source
+            
+            # Парсим расписание на текущей (уже переключенной) неделе
+            parse_schedule_for_current_week(html_content, service)
+            
+        except Exception as e:
+            print(f"Ошибка при переключении на неделю {week}: {str(e)}")
+            break
+    
+    # Закрываем браузер
+    driver.quit()
+
+# Запуск программы
+if __name__ == "__main__":
+    main()
